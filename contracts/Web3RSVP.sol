@@ -1,10 +1,7 @@
-//SPDX-License-Identifier: Unlicense
+//SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "hardhat/console.sol";
-
 contract Web3RSVP {
-
     event NewEventCreated(
         bytes32 eventID,
         address creatorAddress,
@@ -38,8 +35,8 @@ contract Web3RSVP {
         uint256 eventTimeStamp,
         uint256 deposit,
         uint256 maxCapacity,
-        string callData eventDataCID
-        ) external {
+        string calldata eventDataCID
+    ) external {
         // generate an eventID based on other things passed in to generate a hash
         bytes32 eventId = keccak256(
             abi.encodePacked(
@@ -53,7 +50,7 @@ contract Web3RSVP {
         emit NewEventCreated(
             eventId,
             msg.sender,
-            eventTimestamp,
+            eventTimeStamp,
             maxCapacity,
             deposit,
             eventDataCID
@@ -67,7 +64,7 @@ contract Web3RSVP {
             eventId,
             eventDataCID,
             msg.sender,
-            eventTimestamp,
+            eventTimeStamp,
             deposit,
             maxCapacity,
             confirmedRSVPs,
@@ -84,7 +81,7 @@ contract Web3RSVP {
         require(msg.value == myEvent.deposit, "NOT ENOUGH");
 
         // require that the event hasn't already happened (<eventTimestamp)
-        require(block.timestamp <= myEvent.eventTimeStamp, "ALREADY HAPPENED");
+        require(block.timestamp <= myEvent.eventTimestamp, "ALREADY HAPPENED");
 
         // make sure event is under max capacity
         require(
@@ -94,13 +91,16 @@ contract Web3RSVP {
 
         // require that msg.sender isn't already in myEvent.confirmedRSVPs AKA hasn't already RSVP'd
         for (uint8 i = 0; i < myEvent.confirmedRSVPs.length; i++) {
-            require(myEvent.confirmedRSVPs[i] != msg.sender, "ALREADY CONFIRMED");
+            require(
+                myEvent.confirmedRSVPs[i] != msg.sender,
+                "ALREADY CONFIRMED"
+            );
         }
 
         myEvent.confirmedRSVPs.push(payable(msg.sender));
         emit NewRSVP(eventId, msg.sender);
     }
-    
+
     function confirmAttendee(bytes32 eventId, address attendee) public {
         // look up event from our struct using the eventId
         CreateEvent storage myEvent = idToEvent[eventId];
@@ -112,13 +112,12 @@ contract Web3RSVP {
         address rsvpConfirm;
 
         for (uint8 i = 0; i < myEvent.confirmedRSVPs.length; i++) {
-            if(myEvent.confirmedRSVPs[i] == attendee){
+            if (myEvent.confirmedRSVPs[i] == attendee) {
                 rsvpConfirm = myEvent.confirmedRSVPs[i];
             }
         }
 
         require(rsvpConfirm == attendee, "NO RSVP TO CONFIRM");
-
 
         // require that attendee is NOT already in the claimedRSVPs list AKA make sure they haven't already checked in
         for (uint8 i = 0; i < myEvent.claimedRSVPs.length; i++) {
@@ -132,7 +131,7 @@ contract Web3RSVP {
         myEvent.claimedRSVPs.push(attendee);
 
         // sending eth back to the staker `https://solidity-by-example.org/sending-ether`
-        (bool sent,) = attendee.call{value: myEvent.deposit}("");
+        (bool sent, ) = attendee.call{value: myEvent.deposit}("");
 
         // if this fails, remove the user from the array of claimed RSVPs
         if (!sent) {
@@ -140,7 +139,7 @@ contract Web3RSVP {
         }
 
         require(sent, "Failed to send Ether");
-        
+
         emit ConfirmedAttendee(eventId, attendee);
     }
 
@@ -155,9 +154,7 @@ contract Web3RSVP {
         for (uint8 i = 0; i < myEvent.confirmedRSVPs.length; i++) {
             confirmAttendee(eventId, myEvent.confirmedRSVPs[i]);
         }
-        emit ConfirmedAttendee(eventId, attendee);
     }
-    
 
     function withdrawUnclaimedDeposits(bytes32 eventId) external {
         // look up event
@@ -176,7 +173,8 @@ contract Web3RSVP {
         require(msg.sender == myEvent.eventOwner, "MUST BE EVENT OWNER");
 
         // calculate how many people didn't claim by comparing
-        uint256 unclaimed = myEvent.confirmedRSVPs.length - myEvent.claimedRSVPs.length;
+        uint256 unclaimed = myEvent.confirmedRSVPs.length -
+            myEvent.claimedRSVPs.length;
 
         uint256 payout = unclaimed * myEvent.deposit;
 
@@ -194,6 +192,4 @@ contract Web3RSVP {
         require(sent, "Failed to send Ether");
         emit DepositsPaidOut(eventId);
     }
-    
-
 }
